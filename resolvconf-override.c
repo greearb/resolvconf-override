@@ -2,6 +2,7 @@
 
 /*
  * Copyright 2013, 2017 Bastien Nocera
+ * Copyright 2020 Ben Greear <greearb@candelatech.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public License as
@@ -31,6 +32,13 @@
 #include <string.h>
 #include <stdlib.h>
 
+static int done_override = 0;
+/* 111.222.333.444 (15 characters max) */
+#define MAX_ADDR_SIZE 16
+static char my_addrlist[MAXNS][MAX_ADDR_SIZE];
+static int my_addrlist_len = 0;
+static int my_use_tcp = 0;
+
 /* For debugging */
 #if 0
 static void
@@ -52,7 +60,21 @@ override_ns (void)
 	int i;
 	int valid_ns = 0;
 
-	for (i = 0; i < MAXNS; i++) {
+	if (my_addrlist_len) {
+	   int mx = MAXNS;
+	   if (my_addrlist_len < mx)
+	      mx = my_addrlist_len;
+	   for (i = 0; i < mx; i++) {
+		if (inet_pton (AF_INET, my_addrlist[i], &_res.nsaddr_list[i].sin_addr) < 1) {
+			fprintf (stderr, "Ignoring invalid nameserver '%s'\n", my_addrlist[i]);
+			continue;
+		}
+
+		valid_ns++;
+	   }
+	}
+	else {
+	   for (i = 0; i < MAXNS; i++) {
 		char envvar[] = "NAMESERVERx";
 		const char *ns;
 
@@ -69,6 +91,7 @@ override_ns (void)
 		}
 
 		valid_ns++;
+	   }
 	}
 
 	/* Set the number of valid nameservers */
@@ -79,14 +102,27 @@ override_ns (void)
 static void
 override_options (void)
 {
-	if (getenv ("FORCE_DNS_OVER_TCP") != NULL)
+	if (my_use_tcp || getenv ("FORCE_DNS_OVER_TCP") != NULL)
 		_res.options |= RES_USEVC;
+}
+
+void resolvconf_override_init(const char** servers, int len, int use_tcp) {
+   my_use_tcp = use_tcp;
+   memset(my_addrlist, 0, sizeof(my_addrlist));
+   for (int i = 0; i<len; i++) {
+      strncpy(my_addrlist[i], servers[i], MAX_ADDR_SIZE-1);
+   }
+   my_addrlist_len = len;
+   done_override = 0;
 }
 
 struct hostent *gethostbyname(const char *name)
 {
-	if (res_init () < 0)
+        if (!done_override) {
+	   done_override = 1;
+	   if (res_init () < 0)
 		return NULL;
+	}
 	struct hostent * (*f)() = dlsym (RTLD_NEXT, "gethostbyname");
 	struct hostent *ret =  f(name);
 
@@ -97,8 +133,11 @@ int getaddrinfo(const char *node, const char *service,
 		const struct addrinfo *hints,
 		struct addrinfo **res)
 {
-	if (res_init () < 0)
-		return EAI_SYSTEM;
+        if (!done_override) {
+	   done_override = 1;
+	   if (res_init () < 0)
+	      return EAI_SYSTEM;
+	}
 	int (*f)() = dlsym (RTLD_NEXT, "getaddrinfo");
 	return f(node, service, hints, res);
 }

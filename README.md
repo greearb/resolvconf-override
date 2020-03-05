@@ -13,6 +13,11 @@ $ meson ..
 $ ninja
 ```
 
+OR:
+
+make
+
+
 Usage
 -----
 
@@ -26,6 +31,12 @@ Invalid nameserver names passed as arguments are ignored.
 
 If you want to force the use of TCP for DNS requests, set the
 `FORCE_DNS_OVER_TCP` environment variable.
+
+
+You can also use the resolvconf_override_init method to pass in servers and options.
+This may be useful if environment variables are not easily used in your project.
+This init method must be called before any calls to the resolv methods in order to
+have any effect, however.
 
 Technical details
 -----------------

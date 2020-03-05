@@ -10,6 +10,7 @@ RM = rm -f   # rm command
 TARGET_LIB = resolvconf-override.so  # target lib
 
 SRCS = resolvconf-override.c  # source files
+HEADERS = $(SRCS:.c=.h)
 OBJS = $(SRCS:.c=.o)
 
 .PHONY: all
@@ -18,7 +19,7 @@ all: ${TARGET_LIB}
 $(TARGET_LIB): $(OBJS)
 	$(CC) ${LDFLAGS} -o $@ $^
 
-$(SRCS:.c=.d):%.d:%.c
+$(SRCS:.c=.d):%.d:%.c ${HEADERS}
 	$(CC) $(CFLAGS) -MM $< >$@
 
 include $(SRCS:.c=.d)
