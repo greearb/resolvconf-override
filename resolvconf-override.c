@@ -107,9 +107,11 @@ override_options (void)
 }
 
 void resolvconf_override_init(const char** servers, int len, int use_tcp) {
+   int i;
+   
    my_use_tcp = use_tcp;
    memset(my_addrlist, 0, sizeof(my_addrlist));
-   for (int i = 0; i<len; i++) {
+   for (i = 0; i<len; i++) {
       strncpy(my_addrlist[i], servers[i], MAX_ADDR_SIZE-1);
    }
    my_addrlist_len = len;
@@ -123,10 +125,12 @@ struct hostent *gethostbyname(const char *name)
 	   if (res_init () < 0)
 		return NULL;
 	}
-	struct hostent * (*f)() = dlsym (RTLD_NEXT, "gethostbyname");
-	struct hostent *ret =  f(name);
+	{
+	   struct hostent * (*f)() = dlsym (RTLD_NEXT, "gethostbyname");
+	   struct hostent *ret =  f(name);
 
-	return ret;
+	   return ret;
+	}
 }
 
 int getaddrinfo(const char *node, const char *service,
@@ -138,8 +142,10 @@ int getaddrinfo(const char *node, const char *service,
 	   if (res_init () < 0)
 	      return EAI_SYSTEM;
 	}
-	int (*f)() = dlsym (RTLD_NEXT, "getaddrinfo");
-	return f(node, service, hints, res);
+	{
+	   int (*f)() = dlsym (RTLD_NEXT, "getaddrinfo");
+	   return f(node, service, hints, res);
+	}
 }
 
 int __res_init(void)
